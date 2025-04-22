@@ -12,16 +12,6 @@ import {
   ChartData
 } from 'chart.js';
 
-// Объявляем глобальную переменную для хранения данных подсказок
-declare global {
-  interface Window {
-    _chartTooltipData: Array<{ y: number; description?: string; additionalValue?: number }[]>;
-  }
-}
-
-// Инициализируем массив для хранения данных подсказок для каждого набора данных
-window._chartTooltipData = [];
-
 // Регистрируем необходимые компоненты Chart.js
 ChartJS.register(
   CategoryScale,
@@ -35,27 +25,30 @@ ChartJS.register(
 
 // Интерфейс для дополнительных данных точек
 interface PointData {
+  y: number;
   description?: string;
   additionalValue?: number;
 }
 
+// Расширяем тип данных для Chart.js
+type CustomDataset = ChartData<'line'>['datasets'][0] & {
+  tooltipData?: PointData[];
+};
+
 // Функция для создания данных с дополнительной информацией
-const createDataWithTooltips = (values: number[], descriptions?: string[], datasetIndex: number = 0): number[] => {
-  // Сохраняем дополнительную информацию в отдельном массиве для использования в tooltip
+const createDataWithTooltips = (values: number[], descriptions?: string[]): { data: number[], tooltipData: PointData[] } => {
+  // Создаем дополнительную информацию для использования в tooltip
   const tooltipData = values.map((value, index) => ({
     y: value,
     description: descriptions?.[index] || `Дополнительная информация для значения ${value}`,
     additionalValue: Math.round(value * 1.5) // Пример дополнительного значения
   }));
-  
-  // Сохраняем данные для использования в tooltip
-  if (!window._chartTooltipData[datasetIndex]) {
-    window._chartTooltipData[datasetIndex] = [];
-  }
-  window._chartTooltipData[datasetIndex] = tooltipData;
-  
-  // Возвращаем простой массив чисел, который Chart.js может корректно обработать
-  return values;
+
+  // Возвращаем объект с данными и метаданными для подсказок
+  return {
+    data: values,
+    tooltipData: tooltipData
+  };
 };
 
 const LineChart = () => {
@@ -73,33 +66,33 @@ const LineChart = () => {
       tooltip: {
         callbacks: {
           label: function(context) {
-            // Получаем индекс набора данных и индекс точки
-            const datasetIndex = context.datasetIndex;
+            // Получаем индекс точки
             const index = context.dataIndex;
-            
-            // Получаем данные из глобальной переменной
-            const tooltipData = window._chartTooltipData[datasetIndex]?.[index];
-            
+
+            // Получаем данные из метаданных датасета
+            const customDataset = context.dataset as CustomDataset;
+            const tooltipData = customDataset.tooltipData?.[index];
+
             let label = context.dataset.label || '';
-            
+
             if (label) {
               label += ': ';
             }
-            
+
             // Используем значение из context.parsed.y для отображения числа
             if (context.parsed.y !== undefined) {
               label += context.parsed.y;
             }
-            
-            // Добавляем дополнительную информацию из сохраненных данных
+
+            // Добавляем дополнительную информацию из метаданных
             if (tooltipData?.description) {
               label += ` (${tooltipData.description})`;
             }
-            
+
             if (tooltipData?.additionalValue !== undefined) {
               label += `\nДополнительное значение: ${tooltipData.additionalValue}`;
             }
-            
+
             return label;
           }
         }
@@ -125,70 +118,94 @@ const LineChart = () => {
         "январь 26"
     ],
     "datasets": [
-        {
-            "label": "Актер вот еще ",
-            "data": createDataWithTooltips(
+        (() => {
+            const dataset = createDataWithTooltips(
                 [3, 5, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0],
-                ["Информация об актере за январь", "Пик активности в феврале", "Снижение в марте", "Нет активности в апреле", "Небольшая активность в мае"],
-                0
-            )
-        },
-        {
-            "label": "Базовая новая ",
-            "data": createDataWithTooltips(
+                ["Информация об актере за январь", "Пик активности в феврале", "Снижение в марте", "Нет активности в апреле", "Небольшая активность в мае"]
+            );
+            return {
+                "label": "Актер вот еще ",
+                "data": dataset.data,
+                "tooltipData": dataset.tooltipData
+            };
+        })(),
+        (() => {
+            const dataset = createDataWithTooltips(
                 [6, 0, 4, 1, 0, 1, 0, 0, 2, 1, 1, 2, 2],
-                ["Высокая активность в январе", "Нет активности в феврале", "Возобновление в марте", "Снижение в апреле"],
-                1
-            )
-        },
-        {
-            "label": "Основатель сети ресторановйцк у",
-            "data": createDataWithTooltips(
+                ["Высокая активность в январе", "Нет активности в феврале", "Возобновление в марте", "Снижение в апреле"]
+            );
+            return {
+                "label": "Базовая новая ",
+                "data": dataset.data,
+                "tooltipData": dataset.tooltipData
+            };
+        })(),
+        (() => {
+            const dataset = createDataWithTooltips(
                 [7, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 1],
-                ["Максимальная активность в январе", "Длительный период бездействия", "Возобновление в июле"],
-                2
-            )
-        },
-        {
-            "label": "Семьянин цйуа йцуа ",
-            "data": createDataWithTooltips(
+                ["Максимальная активность в январе", "Длительный период бездействия", "Возобновление в июле"]
+            );
+            return {
+                "label": "Основатель сети ресторановйцк у",
+                "data": dataset.data,
+                "tooltipData": dataset.tooltipData
+            };
+        })(),
+        (() => {
+            const dataset = createDataWithTooltips(
                 [1, 2, 2, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-                ["Начало года", "Рост в феврале", "Стабильность в марте", "Снижение в апреле"],
-                3
-            )
-        },
-        {
-            "label": "Жизнь без имени и вот так",
-            "data": createDataWithTooltips(
+                ["Начало года", "Рост в феврале", "Стабильность в марте", "Снижение в апреле"]
+            );
+            return {
+                "label": "Семьянин цйуа йцуа ",
+                "data": dataset.data,
+                "tooltipData": dataset.tooltipData
+            };
+        })(),
+        (() => {
+            const dataset = createDataWithTooltips(
                 [0, 3, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                ["Нет активности", "Пик в феврале", "Нет активности в марте", "Рост в апреле"],
-                4
-            )
-        },
-        {
-            "label": "Спортсмен",
-            "data": createDataWithTooltips(
+                ["Нет активности", "Пик в феврале", "Нет активности в марте", "Рост в апреле"]
+            );
+            return {
+                "label": "Жизнь без имени и вот так",
+                "data": dataset.data,
+                "tooltipData": dataset.tooltipData
+            };
+        })(),
+        (() => {
+            const dataset = createDataWithTooltips(
                 [2, 1, 2, 1, 1, 1, 1, 0, 0, 0, 1, 0, 1],
-                ["Хорошее начало года", "Снижение в феврале", "Восстановление в марте", "Стабильная активность"],
-                5
-            )
-        },
-        {
-            "label": "Жизнь важная 1",
-            "data": createDataWithTooltips(
+                ["Хорошее начало года", "Снижение в феврале", "Восстановление в марте", "Стабильная активность"]
+            );
+            return {
+                "label": "Спортсмен",
+                "data": dataset.data,
+                "tooltipData": dataset.tooltipData
+            };
+        })(),
+        (() => {
+            const dataset = createDataWithTooltips(
                 [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                ["Единственная активность в январе", "Далее нет активности"],
-                6
-            )
-        },
-        {
-            "label": "Жизнь без имени",
-            "data": createDataWithTooltips(
+                ["Единственная активность в январе", "Далее нет активности"]
+            );
+            return {
+                "label": "Жизнь важная 1",
+                "data": dataset.data,
+                "tooltipData": dataset.tooltipData
+            };
+        })(),
+        (() => {
+            const dataset = createDataWithTooltips(
                 [5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                ["Высокая активность только в январе", "Далее нет активности"],
-                7
-            )
-        }
+                ["Высокая активность только в январе", "Далее нет активности"]
+            );
+            return {
+                "label": "Жизнь без имени",
+                "data": dataset.data,
+                "tooltipData": dataset.tooltipData
+            };
+        })()
     ]
 };
 
