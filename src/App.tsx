@@ -2,6 +2,7 @@ import './App.css'
 import LineChart from './components/LineChart'
 import {EnergyChart } from "./components/BarChart.tsx";
 import dayjs from "dayjs";
+import GradientLineChart from "./components/LineChartGradient.tsx";
 
 
 export const generateEnergyData = (startDate: string, endDate: string) => {
@@ -34,8 +35,9 @@ function App() {
   return (
     <div className="app-container">
       <div className="chart-container">
-        <LineChart />
-        <EnergyChart  data={data} />
+        <GradientLineChart />
+        {/*<LineChart />
+        <EnergyChart  data={data} />*/}
       </div>
     </div>
   )
